@@ -27,6 +27,10 @@ on:
         description: "Feature Set"
         required: false
         type: string
+      enable_nomount:
+        description: "Enable NoMount integration"
+        required: false
+        type: boolean
 
 jobs:
   generate-matrix:
@@ -75,4 +79,5 @@ jobs:
       patches_commit: ${{ inputs.patches_commit }}
       susfs_commit: ${{ inputs.susfs_commit }}
       feature_set: ${{ inputs.feature_set }}
+      enable_nomount: ${{ inputs.enable_nomount }}
     secrets: inherit
