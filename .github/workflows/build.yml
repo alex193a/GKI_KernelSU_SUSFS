@@ -27,6 +27,9 @@ on:
       feature_set:
         required: true
         type: string
+      enable_nomount:
+        required: false
+        type: boolean
 
 jobs:
   build-gki:
@@ -230,6 +233,7 @@ jobs:
         sublevel: ${{ steps.extract.outputs.sublevel }}
 
     - name: Setup NoMount
+      if: ${{ inputs.enable_nomount == true }}
       run: |
         set -e
 
