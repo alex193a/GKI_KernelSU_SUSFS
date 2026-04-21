@@ -207,6 +207,30 @@ jobs:
             sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace\/hooks\/fs.h>' ./fs/namespace.c
         fi
 
+    - name: Setup NoMount
+      if: ${{ inputs.enable_nomount == true }}
+      run: |
+        set -e
+
+        NOMOUNT_DIR="$GITHUB_WORKSPACE/nomount"
+        if [ -d "$NOMOUNT_DIR" ]; then
+          rm -rf "$NOMOUNT_DIR"
+        fi
+        git clone --depth 1 https://github.com/maxsteeel/nomount.git "$NOMOUNT_DIR"
+
+        PATCH_FILE="$NOMOUNT_DIR/patches/nomount-kernel-$KERNEL_VERSION.patch"
+        if [ ! -f "$PATCH_FILE" ]; then
+          echo "NoMount patch not available for kernel $KERNEL_VERSION, skipping integration"
+          exit 0
+        fi
+
+        cd "$GITHUB_WORKSPACE/kernel/common"
+        patch --forward -p1 --fuzz=10 < "$PATCH_FILE"
+
+        if ! grep -qxF 'CONFIG_NOMOUNT=y' "$GITHUB_WORKSPACE/wild_gki.fragment"; then
+          echo 'CONFIG_NOMOUNT=y' >> "$GITHUB_WORKSPACE/wild_gki.fragment"
+        fi
+
     - name: Setup KernelSU-Next
       if: contains(inputs.feature_set, 'KSUN')
       uses: ./.github/actions/kernelsu
@@ -231,38 +255,6 @@ jobs:
         kernel_version: ${{ steps.parse.outputs.kernel_version }}
         os_patch_level: ${{ steps.parse.outputs.os_patch_level }}
         sublevel: ${{ steps.extract.outputs.sublevel }}
-
-    - name: Setup NoMount
-      if: ${{ inputs.enable_nomount == true }}
-      run: |
-        set -e
-
-        NOMOUNT_DIR="$GITHUB_WORKSPACE/nomount"
-        if [ -d "$NOMOUNT_DIR" ]; then
-          rm -rf "$NOMOUNT_DIR"
-        fi
-        git clone --depth 1 https://github.com/maxsteeel/nomount.git "$NOMOUNT_DIR"
-
-        KVER="$KERNEL_VERSION"
-        PATCH_FILE="$NOMOUNT_DIR/patches/nomount-kernel-$KVER.patch"
-        if [[ "${{ inputs.feature_set }}" == *"SUSFS"* ]]; then
-          SUSFS_PATCH="$NOMOUNT_DIR/patches/nomount-susfs-kernel-$KVER.patch"
-          if [ -f "$SUSFS_PATCH" ]; then
-            PATCH_FILE="$SUSFS_PATCH"
-          fi
-        fi
-
-        if [ ! -f "$PATCH_FILE" ]; then
-          echo "NoMount patch not available for kernel $KVER, skipping integration"
-          exit 0
-        fi
-
-        cd "$GITHUB_WORKSPACE/kernel/common"
-        patch --forward -p1 --fuzz=10 < "$PATCH_FILE"
-
-        if ! grep -qxF 'CONFIG_NOMOUNT=y' "$GITHUB_WORKSPACE/wild_gki.fragment"; then
-          echo 'CONFIG_NOMOUNT=y' >> "$GITHUB_WORKSPACE/wild_gki.fragment"
-        fi
 
     - name: Setup Baseband Guard
       if: contains(inputs.feature_set, 'BBG')
